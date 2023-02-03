@@ -1,0 +1,15 @@
+{:paths
+ ["src" "resources"]
+
+ :deps
+ {methodical/methodical {:mvn/version "0.15.1"}
+  instaparse/instaparse {:mvn/version "1.4.12"}}
+
+ :aliases
+ {:dev
+  {:extra-deps  {io.github.metabase/hawk {:sha "45ed36008014f9ac1ea66beb56fb1c4c39f8342b"}}
+   :extra-paths ["test"]}
+
+  ;; clj -X:dev:test
+  :test
+  {:exec-fn hawk.core/find-and-run-tests-cli}}}
