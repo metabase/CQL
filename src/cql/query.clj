@@ -4,6 +4,7 @@
    [cql.from :as from]
    [cql.options :as options]
    [cql.parse :as parse]
+   [cql.select :as select]
    [cql.where :as where]
    [methodical.core :as m]))
 
@@ -34,38 +35,40 @@
   [data s]
   (query data (parse/parse s)))
 
-(m/defmulti apply-clause
-  {:arglists '([data clause v]), :defmethod-arities #{3}}
-  (fn [_data clause _v]
+(m/defmulti clause-xform
+  "Return a transducer based on `clause` e.g. `:select` and `v` e.g. `[[:identifier :id]]`."
+  {:arglists            '([clause v])
+   :defmethod-arities   #{2}
+   :dispatch-value-spec keyword?}
+  (fn [clause _v]
     (keyword clause)))
 
-(m/defmethod apply-clause :around :default
-  [data clause v]
-  (options/debug-println (list `apply-clause data clause v))
-  (let [result (next-method data clause v)]
-    (options/debug-println clause '=> result)
-    result))
+(m/defmethod clause-xform :from
+  [_from from-clause]
+  (from/from-xform from-clause))
 
-(m/defmethod apply-clause :from
-  [data _from from-clause]
-  (from/apply-from data from-clause))
+(m/defmethod clause-xform :where
+  [_where where-clause]
+  (where/where-xform where-clause))
 
-(m/defmethod apply-clause :where
-  [data _where where-clause]
-  (where/apply-where data where-clause))
+(m/defmethod clause-xform :select
+  [_select select-clause]
+  (select/select-xform select-clause))
 
-(m/defmethod apply-clause :select
-  [data _select select]
-  (when-not (= select [[:star]])
-    (throw (ex-info "Only SELECT * is currently implemented!"
-                    {:select select})))
-  data)
+;;; TODO -- need a more clever way to specify this so we can add more clauses without having to hardcoding them
+(def clauses
+  [:from
+   :select
+   :where])
+
+(defn query-xform [a-query]
+  (reduce comp identity (for [clause clauses
+                              :when (contains? a-query clause)]
+                          (clause-xform clause (get a-query clause)))))
 
 (m/defmethod query [clojure.lang.IPersistentMap clojure.lang.IPersistentMap]
   [data a-query]
-  ;; TODO this should probably use `reduce` or something to apply all the keys in the appropriate order using a
-  ;; multimethod for each key.
-  (cond-> data
-    (:from a-query)   (apply-clause :from   (:from a-query))
-    (:select a-query) (apply-clause :select (:select a-query))
-    (:where a-query)  (apply-clause :where  (:where a-query))))
+  (transduce
+   (query-xform a-query)
+   conj
+   [data]))
