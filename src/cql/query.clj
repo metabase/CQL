@@ -5,8 +5,11 @@
    [cql.options :as options]
    [cql.parse :as parse]
    [cql.select :as select]
+   [cql.util :as u]
    [cql.where :as where]
    [methodical.core :as m]))
+
+(set! *warn-on-reflection* true)
 
 (comment s/keep-me)
 
@@ -35,36 +38,40 @@
   [data s]
   (query data (parse/parse s)))
 
-(m/defmulti clause-xform
-  "Return a transducer based on `clause` e.g. `:select` and `v` e.g. `[[:identifier :id]]`."
-  {:arglists            '([clause v])
-   :defmethod-arities   #{2}
-   :dispatch-value-spec keyword?}
-  (fn [clause _v]
-    (keyword clause)))
+(m/defmulti query-xform
+  "Build the transducer to apply some data to get query results. `query-map` Honey SQL-esque map like
 
-(m/defmethod clause-xform :from
-  [_from from-clause]
+  ```clj
+  {:select ..., :from ...}
+  ```
+
+  The methods for every key on the map will be invoked, and should return a transducer; they are combined with `comp`.
+  The order they are applied is determined by this multimethod's preferences (i.e., `m/prefer-method!`)."
+  {:arglists            '([query-map])
+   :defmethod-arities   #{1}
+   :dispatch-value-spec keyword?}
+  :combo      (u/comp-method-combination)
+  :dispatcher (u/map-keys-dispatcher))
+
+(m/defmethod query-xform :default
+  [_]
+  identity)
+
+(m/defmethod query-xform :from
+  [{from-clause :from}]
   (from/from-xform from-clause))
 
-(m/defmethod clause-xform :where
-  [_where where-clause]
+(m/defmethod query-xform :where
+  [{where-clause :where}]
   (where/where-xform where-clause))
 
-(m/defmethod clause-xform :select
-  [_select select-clause]
+(m/prefer-method! #'query-xform :from :where)
+
+(m/defmethod query-xform :select
+  [{select-clause :select}]
   (select/select-xform select-clause))
 
-;;; TODO -- need a more clever way to specify this so we can add more clauses without having to hardcoding them
-(def clauses
-  [:from
-   :select
-   :where])
-
-(defn query-xform [a-query]
-  (reduce comp identity (for [clause clauses
-                              :when (contains? a-query clause)]
-                          (clause-xform clause (get a-query clause)))))
+(m/prefer-method! #'query-xform :where :select)
 
 (m/defmethod query [clojure.lang.IPersistentMap clojure.lang.IPersistentMap]
   [data a-query]
