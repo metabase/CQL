@@ -3,24 +3,24 @@
    [clojure.test :refer :all]
    [cql.parse :as parse]))
 
-(deftest string-literal-test
+(deftest ^:parallel string-literal-test
   (is (= {:select [[:literal "abc"]]}
          (parse/parse "SELECT 'abc'")))
   (testing "escaped"
     (is (= {:select [[:literal "ab''c"]]}
            (parse/parse "SELECT 'ab''c'")))))
 
-(deftest jdbc-placeholder-test
+(deftest ^:parallel jdbc-placeholder-test
   (is (= {:select [[:star]]
           :from   [[:identifier "table"]]
           :where  [:= [:jdbc-placeholder] 100]}
          (parse/parse "SELECT * FROM table WHERE ? = 100"))))
 
-(deftest function-call-no-args-test
+(deftest ^:parallel function-call-no-args-test
   (is (= {:select [[:fn [:identifier "now"]]]}
          (parse/parse "SELECT now()"))))
 
-(deftest conditions-test
+(deftest ^:parallel conditions-test
   (doseq [condition [">" "<" "=" ">=" "<="]]
     (testing condition
       (is (= {:select [[:star]]
@@ -28,13 +28,13 @@
               :where  [(keyword condition) [:identifier "x"] 1]}
              (parse/parse (format "SELECT * FROM TABLE WHERE x%s1" condition)))))))
 
-(deftest between-test
+(deftest ^:parallel between-test
   (is (= {:select [[:star]]
           :from   [[:identifier "table"]]
           :where  [:between [:identifier "x"] 1 2]}
          (parse/parse "SELECT * FROM table WHERE x BETWEEN 1 AND 2"))))
 
-(deftest compound-condition-test
+(deftest ^:parallel compound-condition-test
   (doseq [[k s] {:or "OR"
                  :and "AND"}]
     (testing s
@@ -52,7 +52,7 @@
                    [:= [:identifier "z"] 3]]]}
          (parse/parse "SELECT * FROM table WHERE (x = 1 AND (y = 2 OR z = 3))"))))
 
-(deftest group-by-test
+(deftest ^:parallel group-by-test
   (is (= {:select   [[:star]]
           :from     [[:identifier "ORDERS"]]
           :group-by [[:fn
@@ -66,7 +66,7 @@
           :group-by [[:identifier "x"]]}
          (parse/parse "SELECT * FROM table WHERE x = 1 GROUP BY x"))))
 
-(deftest nested-function-calls-test
+(deftest ^:parallel nested-function-calls-test
   (is (= {:select [[:as
                     [:fn
                      [:identifier "parsedatetime"]
@@ -82,16 +82,16 @@
                     [:literal "yyyy"]]]}
          (parse/parse "SELECT parsedatetime(year(now()), 'yyyy')"))))
 
-(deftest wrapped-condition-test
+(deftest ^:parallel wrapped-condition-test
   (is (= {:select [[:star]]
           :where  [:= [:identifier "x"] [:identifier "y"]]}
          (parse/parse "SELECT * WHERE (x = y)"))))
 
-(deftest cast-test
+(deftest ^:parallel cast-test
   (is (= {:select [[:cast -2 [:identifier "long"]]]}
          (parse/parse "SELECT CAST(-2 AS long)"))))
 
-(deftest order-by-test
+(deftest ^:parallel order-by-test
   (is (= {:select   [[:star]]
           :from     [[:identifier "table"]]
           :order-by [[[:fn
@@ -101,7 +101,7 @@
                       :asc]]}
          (parse/parse "SELECT * FROM table ORDER BY parsedatetime(year(source.CREATED_AT), 'yyyy') ASC"))))
 
-(deftest arithmetic-expression-test
+(deftest ^:parallel arithmetic-expression-test
   (is (= {:select [[:+ 1 2]]}
          (parse/parse "SELECT 1 + 2")))
   (is (= {:select [[:+ 1 2]]}
@@ -116,7 +116,7 @@
            (parse/parse "SELECT (1 + 2) * (3 + 4 / 5)")
            (parse/parse "SELECT (1 + 2) * ((3 + 4) / 5)")))))
 
-(deftest reserved-keywords-test
+(deftest ^:parallel reserved-keywords-test
   (is (thrown?
        clojure.lang.ExceptionInfo
        (parse/parse "SELECT JOIN")))
@@ -128,17 +128,17 @@
   (is (= {:select [[:identifier "JJOIN"]]}
          (parse/parse "SELECT JJOIN"))))
 
-(deftest null-test
+(deftest ^:parallel null-test
   (is (= {:select [nil]}
          (parse/parse "SELECT NULL"))))
 
-(deftest select-as-test
+(deftest ^:parallel select-as-test
   (is (= {:select [[:as
                     [:identifier "x"]
                     [:identifier "y"]]]}
          (parse/parse "SELECT x AS y"))))
 
-(deftest case-test
+(deftest ^:parallel case-test
   (is (= {:select [[:case
                     [:= [:identifier "a"] [:identifier "b"]]
                     [:identifier "a"]
