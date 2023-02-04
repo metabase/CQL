@@ -1,7 +1,7 @@
-(ns cql.query-test
+(ns cql.core-test
   (:require
    [clojure.test :refer :all]
-   [cql.query :as query]))
+   [cql.core :as cql]))
 
 (def data
   (atom {:birds [{:id 1, :name "Parroty", :type "parakeet"}
@@ -11,7 +11,7 @@
 
 (deftest ^:parallel query-test
   (is (= (:birds @data)
-         (query/query data "SELECT * FROM birds" nil)))
+         (cql/query data "SELECT * FROM birds" nil)))
   (is (= [{:id 1, :name "Parroty", :type "parakeet"}
           {:id 2, :name "Egg", :type "parakeet"}]
-         (query/query data "SELECT * FROM birds WHERE type = 'parakeet'" nil))))
+         (cql/query data "SELECT * FROM birds WHERE type = 'parakeet'" nil))))

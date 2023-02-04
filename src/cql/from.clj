@@ -5,7 +5,7 @@
        (= (first x) :identifier)))
 
 (defn apply-from
-  [data [from] _options]
+  [data [from]]
   {:post [(some? %)]}
   (let [table (if (identifier? from)
                 (keyword (second from))
